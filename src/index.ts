@@ -290,41 +290,45 @@ class NanoBananaMCP {
         }
       }
       
-      // Build response content
-      let statusText = `🎨 Image generated with nano-banana (Gemini 2.5 Flash Image)!\n\nPrompt: "${prompt}"`;
+      // Log status information to console
+      console.log(`🎨 Image generated with nano-banana (Gemini 2.5 Flash Image)!`);
+      console.log(`Prompt: "${prompt}"`);
       
       if (textContent) {
-        statusText += `\n\nDescription: ${textContent}`;
+        console.log(`Description: ${textContent}`);
       }
+      
+      let azureUrl = null;
       
       if (savedFiles.length > 0) {
         const isAzureStorage = savedFiles[0].startsWith('https://');
         if (isAzureStorage) {
-          statusText += `\n\n☁️ Image uploaded to Azure Blob Storage:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
-          statusText += `\n\n💡 View the image by:`;
-          statusText += `\n1. Opening the URL above in your browser`;
-          statusText += `\n2. Clicking on "Called generate_image" in Cursor to expand the MCP call details`;
+          azureUrl = savedFiles[0];
+          console.log(`☁️ Image uploaded to Azure Blob Storage:`);
+          savedFiles.forEach(f => console.log(`- ${f}`));
+          console.log(`💡 View the image by:`);
+          console.log(`1. Opening the URL above in your browser`);
+          console.log(`2. Clicking on "Called generate_image" in Cursor to expand the MCP call details`);
         } else {
-          statusText += `\n\n📁 Image saved locally to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
-          statusText += `\n\n💡 View the image by:`;
-          statusText += `\n1. Opening the file at the path above`;
-          statusText += `\n2. Clicking on "Called generate_image" in Cursor to expand the MCP call details`;
+          console.log(`📁 Image saved locally to:`);
+          savedFiles.forEach(f => console.log(`- ${f}`));
+          console.log(`💡 View the image by:`);
+          console.log(`1. Opening the file at the path above`);
+          console.log(`2. Clicking on "Called generate_image" in Cursor to expand the MCP call details`);
         }
-        statusText += `\n\n🔄 To modify this image, use: continue_editing`;
-        statusText += `\n📋 To check current image info, use: get_last_image_info`;
+        console.log(`🔄 To modify this image, use: continue_editing`);
+        console.log(`📋 To check current image info, use: get_last_image_info`);
       } else {
-        statusText += `\n\nNote: No image was generated. The model may have returned only text.`;
-        statusText += `\n\n💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`;
+        console.log(`Note: No image was generated. The model may have returned only text.`);
+        console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
       
-      // Add text content first
-      content.unshift({
-        type: "text",
-        text: statusText,
-      });
-      
+      // Return only the Azure URL as JSON
       return { 
-        content,
+        content: [{
+          type: "text",
+          text: JSON.stringify({ azureUrl }),
+        }],
         isError: false 
       };
       
@@ -487,44 +491,51 @@ class NanoBananaMCP {
         }
       }
       
-      // Build response
-      let statusText = `🎨 Image edited with nano-banana!\n\nOriginal: ${imagePath}\nEdit prompt: "${prompt}"`;
+      // Log status information to console
+      console.log(`🎨 Image edited with nano-banana!`);
+      console.log(`Original: ${imagePath}`);
+      console.log(`Edit prompt: "${prompt}"`);
       
       if (referenceImages && referenceImages.length > 0) {
-        statusText += `\n\nReference images used:\n${referenceImages.map(f => `- ${f}`).join('\n')}`;
+        console.log(`Reference images used:`);
+        referenceImages.forEach(f => console.log(`- ${f}`));
       }
       
       if (textContent) {
-        statusText += `\n\nDescription: ${textContent}`;
+        console.log(`Description: ${textContent}`);
       }
+      
+      let azureUrl = null;
       
       if (savedFiles.length > 0) {
         const isAzureStorage = savedFiles[0].startsWith('https://');
         if (isAzureStorage) {
-          statusText += `\n\n☁️ Edited image uploaded to Azure Blob Storage:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
-          statusText += `\n\n💡 View the edited image by:`;
-          statusText += `\n1. Opening the URL above in your browser`;
-          statusText += `\n2. Clicking on "Called edit_image" in Cursor to expand the MCP call details`;
+          azureUrl = savedFiles[0];
+          console.log(`☁️ Edited image uploaded to Azure Blob Storage:`);
+          savedFiles.forEach(f => console.log(`- ${f}`));
+          console.log(`💡 View the edited image by:`);
+          console.log(`1. Opening the URL above in your browser`);
+          console.log(`2. Clicking on "Called edit_image" in Cursor to expand the MCP call details`);
         } else {
-          statusText += `\n\n📁 Edited image saved locally to:\n${savedFiles.map(f => `- ${f}`).join('\n')}`;
-          statusText += `\n\n💡 View the edited image by:`;
-          statusText += `\n1. Opening the file at the path above`;
-          statusText += `\n2. Clicking on "Called edit_image" in Cursor to expand the MCP call details`;
+          console.log(`📁 Edited image saved locally to:`);
+          savedFiles.forEach(f => console.log(`- ${f}`));
+          console.log(`💡 View the edited image by:`);
+          console.log(`1. Opening the file at the path above`);
+          console.log(`2. Clicking on "Called edit_image" in Cursor to expand the MCP call details`);
         }
-        statusText += `\n\n🔄 To continue editing, use: continue_editing`;
-        statusText += `\n📋 To check current image info, use: get_last_image_info`;
+        console.log(`🔄 To continue editing, use: continue_editing`);
+        console.log(`📋 To check current image info, use: get_last_image_info`);
       } else {
-        statusText += `\n\nNote: No edited image was generated.`;
-        statusText += `\n\n💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`;
+        console.log(`Note: No edited image was generated.`);
+        console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
       
-      content.unshift({
-        type: "text",
-        text: statusText,
-      });
-      
+      // Return only the Azure URL as JSON
       return { 
-        content,
+        content: [{
+          type: "text",
+          text: JSON.stringify({ azureUrl }),
+        }],
         isError: false 
       };
       
@@ -621,11 +632,14 @@ class NanoBananaMCP {
 
   private async getLastImageInfo(): Promise<CallToolResult> {
     if (!this.lastImagePath) {
+      console.log("📷 No previous image found.");
+      console.log("Please generate or edit an image first, then this command will show information about your last image.");
+      
       return {
         content: [
           {
             type: "text",
-            text: "📷 No previous image found.\n\nPlease generate or edit an image first, then this command will show information about your last image.",
+            text: JSON.stringify({ azureUrl: null }),
           },
         ],
         isError: false,
@@ -634,11 +648,17 @@ class NanoBananaMCP {
 
     if (this.lastImagePath.startsWith('https://')) {
       // Azure Blob Storage URL
+      console.log("📷 Last Image Information:");
+      console.log("Storage: ☁️ Azure Blob Storage");
+      console.log(`URL: ${this.lastImagePath}`);
+      console.log("Status: ✅ Available online");
+      console.log("💡 Use continue_editing to make further changes to this image.");
+      
       return {
         content: [
           {
             type: "text",
-            text: `📷 Last Image Information:\n\nStorage: ☁️ Azure Blob Storage\nURL: ${this.lastImagePath}\nStatus: ✅ Available online\n\n💡 Use continue_editing to make further changes to this image.`,
+            text: JSON.stringify({ azureUrl: this.lastImagePath }),
           },
         ],
         isError: false,
@@ -649,21 +669,34 @@ class NanoBananaMCP {
         await fs.access(this.lastImagePath);
         const stats = await fs.stat(this.lastImagePath);
         
+        console.log("📷 Last Image Information:");
+        console.log("Storage: 📁 Local file");
+        console.log(`Path: ${this.lastImagePath}`);
+        console.log(`File Size: ${Math.round(stats.size / 1024)} KB`);
+        console.log(`Last Modified: ${stats.mtime.toLocaleString()}`);
+        console.log("💡 Use continue_editing to make further changes to this image.");
+        
         return {
           content: [
             {
               type: "text",
-              text: `📷 Last Image Information:\n\nStorage: 📁 Local file\nPath: ${this.lastImagePath}\nFile Size: ${Math.round(stats.size / 1024)} KB\nLast Modified: ${stats.mtime.toLocaleString()}\n\n💡 Use continue_editing to make further changes to this image.`,
+              text: JSON.stringify({ azureUrl: null }),
             },
           ],
           isError: false,
         };
       } catch {
+        console.log("📷 Last Image Information:");
+        console.log("Storage: 📁 Local file");
+        console.log(`Path: ${this.lastImagePath}`);
+        console.log("Status: ❌ File not found");
+        console.log("💡 The image file may have been moved or deleted. Please generate a new image.");
+        
         return {
           content: [
             {
               type: "text",
-              text: `📷 Last Image Information:\n\nStorage: 📁 Local file\nPath: ${this.lastImagePath}\nStatus: ❌ File not found\n\n💡 The image file may have been moved or deleted. Please generate a new image.`,
+              text: JSON.stringify({ azureUrl: null }),
             },
           ],
           isError: false,
