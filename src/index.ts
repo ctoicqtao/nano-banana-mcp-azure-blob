@@ -209,6 +209,7 @@ class NanoBananaMCP {
             text: "✅ Gemini API token configured successfully! You can now use nano-banana image generation features.",
           },
         ],
+        isError: false,
       };
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -226,6 +227,9 @@ class NanoBananaMCP {
     const { prompt } = request.params.arguments as { prompt: string };
     
     try {
+      // Ensure Azure Storage is initialized if connection string is available
+      await this.ensureAzureStorageInitialized();
+      
       const response = await this.genAI!.models.generateContent({
         model: "gemini-2.5-flash-image-preview",
         contents: prompt,
@@ -265,6 +269,7 @@ class NanoBananaMCP {
               savedFiles.push(blobUrl);
               this.lastImagePath = blobUrl;
               this.lastImageUrl = blobUrl;
+              console.log(`✅ Image uploaded to Azure Blob Storage: ${blobUrl}`);
             } else {
               // Fallback to local storage
               const filePath = path.join(imagesDir, fileName);
@@ -272,6 +277,7 @@ class NanoBananaMCP {
               savedFiles.push(filePath);
               this.lastImagePath = filePath;
               this.lastImageUrl = null;
+              console.log(`📁 Image saved locally: ${filePath}`);
             }
             
             // Add image to MCP response
@@ -317,7 +323,10 @@ class NanoBananaMCP {
         text: statusText,
       });
       
-      return { content };
+      return { 
+        content,
+        isError: false 
+      };
       
     } catch (error) {
       console.error("Error generating image:", error);
@@ -340,6 +349,8 @@ class NanoBananaMCP {
     };
     
     try {
+      // Ensure Azure Storage is initialized if connection string is available
+      await this.ensureAzureStorageInitialized();
       // Prepare the main image
       let imageBuffer: Buffer;
       let mimeType: string;
@@ -512,7 +523,10 @@ class NanoBananaMCP {
         text: statusText,
       });
       
-      return { content };
+      return { 
+        content,
+        isError: false 
+      };
       
     } catch (error) {
       throw new McpError(
@@ -559,6 +573,7 @@ class NanoBananaMCP {
           text: statusText + sourceInfo,
         },
       ],
+      isError: false,
     };
   }
 
@@ -613,6 +628,7 @@ class NanoBananaMCP {
             text: "📷 No previous image found.\n\nPlease generate or edit an image first, then this command will show information about your last image.",
           },
         ],
+        isError: false,
       };
     }
 
@@ -625,6 +641,7 @@ class NanoBananaMCP {
             text: `📷 Last Image Information:\n\nStorage: ☁️ Azure Blob Storage\nURL: ${this.lastImagePath}\nStatus: ✅ Available online\n\n💡 Use continue_editing to make further changes to this image.`,
           },
         ],
+        isError: false,
       };
     } else {
       // Local file - check if it exists
@@ -639,6 +656,7 @@ class NanoBananaMCP {
               text: `📷 Last Image Information:\n\nStorage: 📁 Local file\nPath: ${this.lastImagePath}\nFile Size: ${Math.round(stats.size / 1024)} KB\nLast Modified: ${stats.mtime.toLocaleString()}\n\n💡 Use continue_editing to make further changes to this image.`,
             },
           ],
+          isError: false,
         };
       } catch {
         return {
@@ -648,6 +666,7 @@ class NanoBananaMCP {
               text: `📷 Last Image Information:\n\nStorage: 📁 Local file\nPath: ${this.lastImagePath}\nStatus: ❌ File not found\n\n💡 The image file may have been moved or deleted. Please generate a new image.`,
             },
           ],
+          isError: false,
         };
       }
     }
@@ -685,18 +704,49 @@ class NanoBananaMCP {
       await this.containerClient.createIfNotExists({
         access: 'blob' // Allow public read access to blobs
       });
+      console.log(`✅ Azure Blob Storage initialized: container '${this.config.azureStorageContainerName}'`);
     } catch (error) {
       console.warn('Failed to initialize Azure Storage:', error);
       // Continue without Azure storage - will fall back to local storage
     }
   }
 
+  private async ensureAzureStorageInitialized(): Promise<void> {
+    // Check if Azure Storage connection string is available from environment
+    const envAzureConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
+    const envAzureContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME || 'nano-banana-images';
+    
+    if (envAzureConnectionString && !this.containerClient) {
+      // Update config with environment variables if not already set
+      if (this.config) {
+        this.config.azureStorageConnectionString = envAzureConnectionString;
+        this.config.azureStorageContainerName = envAzureContainerName;
+      }
+      
+      try {
+        this.blobServiceClient = BlobServiceClient.fromConnectionString(envAzureConnectionString);
+        this.containerClient = this.blobServiceClient.getContainerClient(envAzureContainerName);
+        
+        // Create container if it doesn't exist
+        await this.containerClient.createIfNotExists({
+          access: 'blob' // Allow public read access to blobs
+        });
+        console.log(`✅ Azure Blob Storage initialized from environment: container '${envAzureContainerName}'`);
+      } catch (error) {
+        console.warn('Failed to initialize Azure Storage from environment:', error);
+        // Continue without Azure storage - will fall back to local storage
+      }
+    }
+  }
+
   private async uploadToAzureBlob(imageBuffer: Buffer, fileName: string): Promise<string | null> {
     if (!this.containerClient) {
+      console.log('🔍 Azure Blob Storage not configured, using local storage');
       return null;
     }
 
     try {
+      console.log(`🚀 Uploading image to Azure Blob Storage: ${fileName}`);
       const blockBlobClient = this.containerClient.getBlockBlobClient(fileName);
       await blockBlobClient.upload(imageBuffer, imageBuffer.length, {
         blobHTTPHeaders: {
@@ -704,9 +754,10 @@ class NanoBananaMCP {
         }
       });
       
+      console.log(`✅ Successfully uploaded to Azure: ${blockBlobClient.url}`);
       return blockBlobClient.url;
     } catch (error) {
-      console.error('Failed to upload to Azure Blob Storage:', error);
+      console.error('❌ Failed to upload to Azure Blob Storage:', error);
       return null;
     }
   }
