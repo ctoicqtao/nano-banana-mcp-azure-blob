@@ -34,8 +34,6 @@ class NanoBananaMCP {
   private server: Server;
   private genAI: GoogleGenAI | null = null;
   private config: Config | null = null;
-  private lastImagePath: string | null = null;
-  private lastImageUrl: string | null = null;
   private configSource: 'environment' | 'config_file' | 'not_configured' = 'not_configured';
   private blobServiceClient: BlobServiceClient | null = null;
   private containerClient: ContainerClient | null = null;
@@ -122,36 +120,6 @@ class NanoBananaMCP {
               additionalProperties: false,
             },
           },
-          {
-            name: "continue_editing",
-            description: "Continue editing the LAST image that was generated or edited in this session, optionally using additional reference images. Use this for iterative improvements, modifications, or changes to the most recent image. This automatically uses the previous image without needing a file path.",
-            inputSchema: {
-              type: "object",
-              properties: {
-                prompt: {
-                  type: "string",
-                  description: "Text describing the modifications/changes/improvements to make to the last image (e.g., 'change the hat color to red', 'remove the background', 'add flowers')",
-                },
-                referenceImages: {
-                  type: "array",
-                  items: {
-                    type: "string"
-                  },
-                  description: "Optional array of file paths to additional reference images to use during editing (e.g., for style transfer, adding elements from other images, etc.)",
-                },
-              },
-              required: ["prompt"],
-            },
-          },
-          {
-            name: "get_last_image_info",
-            description: "Get information about the last generated/edited image in this session (file path, size, etc.). Use this to check what image is currently available for continue_editing.",
-            inputSchema: {
-              type: "object",
-              properties: {},
-              additionalProperties: false,
-            },
-          },
         ] as Tool[],
       };
     });
@@ -170,12 +138,6 @@ class NanoBananaMCP {
           
           case "get_configuration_status":
             return await this.getConfigurationStatus();
-          
-          case "continue_editing":
-            return await this.continueEditing(request);
-          
-          case "get_last_image_info":
-            return await this.getLastImageInfo();
           
           default:
             throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
@@ -267,16 +229,12 @@ class NanoBananaMCP {
             if (blobUrl) {
               // Successfully uploaded to Azure
               savedFiles.push(blobUrl);
-              this.lastImagePath = blobUrl;
-              this.lastImageUrl = blobUrl;
               console.log(`✅ Image uploaded to Azure Blob Storage: ${blobUrl}`);
             } else {
               // Fallback to local storage
               const filePath = path.join(imagesDir, fileName);
               await fs.writeFile(filePath, imageBuffer);
               savedFiles.push(filePath);
-              this.lastImagePath = filePath;
-              this.lastImageUrl = null;
               console.log(`📁 Image saved locally: ${filePath}`);
             }
             
@@ -316,8 +274,6 @@ class NanoBananaMCP {
           console.log(`1. Opening the file at the path above`);
           console.log(`2. Clicking on "Called generate_image" in Cursor to expand the MCP call details`);
         }
-        console.log(`🔄 To modify this image, use: continue_editing`);
-        console.log(`📋 To check current image info, use: get_last_image_info`);
       } else {
         console.log(`Note: No image was generated. The model may have returned only text.`);
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
@@ -467,15 +423,11 @@ class NanoBananaMCP {
               if (blobUrl) {
                 // Successfully uploaded to Azure
                 savedFiles.push(blobUrl);
-                this.lastImagePath = blobUrl;
-                this.lastImageUrl = blobUrl;
               } else {
                 // Fallback to local storage
                 const filePath = path.join(imagesDir, fileName);
                 await fs.writeFile(filePath, imageBuffer);
                 savedFiles.push(filePath);
-                this.lastImagePath = filePath;
-                this.lastImageUrl = null;
               }
             }
             
@@ -523,8 +475,6 @@ class NanoBananaMCP {
           console.log(`1. Opening the file at the path above`);
           console.log(`2. Clicking on "Called edit_image" in Cursor to expand the MCP call details`);
         }
-        console.log(`🔄 To continue editing, use: continue_editing`);
-        console.log(`📋 To check current image info, use: get_last_image_info`);
       } else {
         console.log(`Note: No edited image was generated.`);
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
@@ -588,122 +538,6 @@ class NanoBananaMCP {
     };
   }
 
-  private async continueEditing(request: CallToolRequest): Promise<CallToolResult> {
-    if (!this.ensureConfigured()) {
-      throw new McpError(ErrorCode.InvalidRequest, "Gemini API token not configured. Use configure_gemini_token first.");
-    }
-
-    if (!this.lastImagePath) {
-      throw new McpError(ErrorCode.InvalidRequest, "No previous image found. Please generate or edit an image first, then use continue_editing for subsequent edits.");
-    }
-
-    const { prompt, referenceImages } = request.params.arguments as { 
-      prompt: string; 
-      referenceImages?: string[];
-    };
-
-    // Check if the last image exists (either as URL or local file)
-    if (this.lastImagePath.startsWith('https://')) {
-      // Azure Blob Storage URL - assume it exists (we can't easily check without making a request)
-      // The editImage method will handle any issues with the URL
-    } else {
-      // Local file - check if it exists
-      try {
-        await fs.access(this.lastImagePath);
-      } catch {
-        throw new McpError(ErrorCode.InvalidRequest, `Last image file not found at: ${this.lastImagePath}. Please generate a new image first.`);
-      }
-    }
-
-    // Use editImage logic with lastImagePath
-    
-    return await this.editImage({
-      method: "tools/call",
-      params: {
-        name: "edit_image",
-        arguments: {
-          imagePath: this.lastImagePath,
-          prompt: prompt,
-          referenceImages: referenceImages
-        }
-      }
-    } as CallToolRequest);
-  }
-
-  private async getLastImageInfo(): Promise<CallToolResult> {
-    if (!this.lastImagePath) {
-      console.log("📷 No previous image found.");
-      console.log("Please generate or edit an image first, then this command will show information about your last image.");
-      
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ azureUrl: null }),
-          },
-        ],
-        isError: false,
-      };
-    }
-
-    if (this.lastImagePath.startsWith('https://')) {
-      // Azure Blob Storage URL
-      console.log("📷 Last Image Information:");
-      console.log("Storage: ☁️ Azure Blob Storage");
-      console.log(`URL: ${this.lastImagePath}`);
-      console.log("Status: ✅ Available online");
-      console.log("💡 Use continue_editing to make further changes to this image.");
-      
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ azureUrl: this.lastImagePath }),
-          },
-        ],
-        isError: false,
-      };
-    } else {
-      // Local file - check if it exists
-      try {
-        await fs.access(this.lastImagePath);
-        const stats = await fs.stat(this.lastImagePath);
-        
-        console.log("📷 Last Image Information:");
-        console.log("Storage: 📁 Local file");
-        console.log(`Path: ${this.lastImagePath}`);
-        console.log(`File Size: ${Math.round(stats.size / 1024)} KB`);
-        console.log(`Last Modified: ${stats.mtime.toLocaleString()}`);
-        console.log("💡 Use continue_editing to make further changes to this image.");
-        
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ azureUrl: null }),
-            },
-          ],
-          isError: false,
-        };
-      } catch {
-        console.log("📷 Last Image Information:");
-        console.log("Storage: 📁 Local file");
-        console.log(`Path: ${this.lastImagePath}`);
-        console.log("Status: ❌ File not found");
-        console.log("💡 The image file may have been moved or deleted. Please generate a new image.");
-        
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ azureUrl: null }),
-            },
-          ],
-          isError: false,
-        };
-      }
-    }
-  }
 
   private ensureConfigured(): boolean {
     return this.config !== null && this.genAI !== null;
