@@ -44,7 +44,7 @@ Add this to your Claude Code MCP settings:
   "mcpServers": {
     "nano-banana": {
       "command": "npx",
-      "args": ["nano-banana-mcp"],
+      "args": ["nano-banana-mcp-azure-blob"],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here",
         "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
@@ -61,7 +61,7 @@ Add this to your Claude Code MCP settings:
   "mcpServers": {
     "nano-banana": {
       "command": "npx",
-      "args": ["nano-banana-mcp"],
+      "args": ["nano-banana-mcp-azure-blob"],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here"
       }
@@ -94,7 +94,7 @@ Add to your Cursor MCP configuration:
 {
   "nano-banana": {
     "command": "npx",
-    "args": ["nano-banana-mcp"],
+    "args": ["nano-banana-mcp-azure-blob"],
     "env": {
       "GEMINI_API_KEY": "your-gemini-api-key-here",
       "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
@@ -109,7 +109,7 @@ Add to your Cursor MCP configuration:
 {
   "nano-banana": {
     "command": "npx",
-    "args": ["nano-banana-mcp"],
+    "args": ["nano-banana-mcp-azure-blob"],
     "env": {
       "GEMINI_API_KEY": "your-gemini-api-key-here"
     }
@@ -124,7 +124,7 @@ Add to your Cursor MCP configuration:
 
 ## 🔧 For Other MCP Clients
 
-If you're using a different MCP client, you can configure nano-banana-mcp using any of these methods:
+If you're using a different MCP client, you can configure nano-banana-mcp-azure-blob using any of these methods:
 
 ### Configuration Methods
 
@@ -133,7 +133,7 @@ If you're using a different MCP client, you can configure nano-banana-mcp using 
 {
   "nano-banana": {
     "command": "npx",
-    "args": ["nano-banana-mcp"],
+    "args": ["nano-banana-mcp-azure-blob"],
     "env": {
       "GEMINI_API_KEY": "your-gemini-api-key-here",
       "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
@@ -148,12 +148,12 @@ If you're using a different MCP client, you can configure nano-banana-mcp using 
 export GEMINI_API_KEY="your-gemini-api-key-here"
 export AZURE_STORAGE_CONNECTION_STRING="your-azure-connection-string"
 export AZURE_STORAGE_CONTAINER_NAME="nano-banana-images"
-npx nano-banana-mcp
+npx nano-banana-mcp-azure-blob
 ```
 
 **Method C: Using the Configure Tool**
 ```bash
-npx nano-banana-mcp
+npx nano-banana-mcp-azure-blob
 # The server will prompt you to configure when first used
 # This creates a local .nano-banana-config.json file
 ```
@@ -238,7 +238,7 @@ For cloud storage, configure Azure Blob Storage by adding these environment vari
   "mcpServers": {
     "nano-banana": {
       "command": "npx",
-      "args": ["nano-banana-mcp"],
+      "args": ["nano-banana-mcp-azure-blob"],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here",
         "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
