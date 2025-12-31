@@ -61,10 +61,47 @@ class NanoBananaMCP {
   private triggerGC(): void {
     if (global.gc) {
       global.gc();
-      console.log('🧹 Garbage collection triggered');
+      const memUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+      const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+      console.log(`🧹 GC triggered - Heap: ${heapUsedMB}MB, RSS: ${rssMB}MB`);
     } else {
       // Schedule a microtask to give GC a chance to run
       setImmediate(() => {});
+    }
+  }
+
+  /**
+   * Force aggressive garbage collection
+   * Triggers GC multiple times to ensure memory is freed
+   */
+  private async forceAggressiveGC(): Promise<void> {
+    if (global.gc) {
+      // Multiple GC passes for more thorough cleanup
+      for (let i = 0; i < 3; i++) {
+        global.gc();
+        await new Promise(resolve => setImmediate(resolve));
+      }
+      const memUsage = process.memoryUsage();
+      const heapUsedMB = Math.round(memUsage.heapUsed / 1024 / 1024);
+      const rssMB = Math.round(memUsage.rss / 1024 / 1024);
+      console.log(`🧹 Aggressive GC completed - Heap: ${heapUsedMB}MB, RSS: ${rssMB}MB`);
+    }
+  }
+
+  /**
+   * Monitor memory and trigger GC if usage is high
+   */
+  private checkMemoryAndGC(): void {
+    const memUsage = process.memoryUsage();
+    const heapUsedMB = memUsage.heapUsed / 1024 / 1024;
+    const heapTotalMB = memUsage.heapTotal / 1024 / 1024;
+    const usagePercent = (heapUsedMB / heapTotalMB) * 100;
+
+    // If heap usage is over 70%, trigger GC
+    if (usagePercent > 70 && global.gc) {
+      console.log(`⚠️  High memory usage detected (${Math.round(usagePercent)}%), triggering GC...`);
+      global.gc();
     }
   }
 
@@ -202,11 +239,14 @@ class NanoBananaMCP {
 
     const { prompt } = request.params.arguments as { prompt: string };
     
+    // Check memory before operation
+    this.checkMemoryAndGC();
+    
     try {
       // Ensure Azure Storage is initialized if connection string is available
       await this.ensureAzureStorageInitialized();
       
-      const response = await this.genAI!.models.generateContent({
+      let response: any = await this.genAI!.models.generateContent({
         model: "gemini-2.5-flash-image-preview",
         contents: prompt,
       });
@@ -252,11 +292,17 @@ class NanoBananaMCP {
               console.log(`📁 Image saved locally: ${filePath}`);
             }
             
-            // Explicitly release buffer reference to help GC
+            // Explicitly release buffer reference
             imageBuffer = null;
+            
+            // Clear the base64 data from response to free memory immediately
+            part.inlineData.data = '';
           }
         }
       }
+      
+      // Explicitly clear the response object to free memory
+      response = null;
       
       // Log status information to console
       console.log(`🎨 Image generated with nano-banana (Gemini 2.5 Flash Image)!`);
@@ -288,9 +334,10 @@ class NanoBananaMCP {
         console.log(`Note: No image was generated. The model may have returned only text.`);
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
+
       
-      // Trigger garbage collection to free up memory
-      this.triggerGC();
+      // Force aggressive garbage collection to free up memory immediately
+      await this.forceAggressiveGC();
       
       // Return only the Azure URL as JSON
       return { 
@@ -303,6 +350,8 @@ class NanoBananaMCP {
       
     } catch (error) {
       console.error("Error generating image:", error);
+      // Trigger GC even on error to clean up any partial data
+      await this.forceAggressiveGC();
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to generate image: ${error instanceof Error ? error.message : String(error)}`
@@ -320,6 +369,9 @@ class NanoBananaMCP {
       prompt: string; 
       referenceImages?: string[];
     };
+    
+    // Check memory before operation
+    this.checkMemoryAndGC();
     
     try {
       // Ensure Azure Storage is initialized if connection string is available
@@ -402,7 +454,7 @@ class NanoBananaMCP {
       imageParts.push({ text: prompt });
       
       // Use new API format with multiple images and text
-      const response = await this.genAI!.models.generateContent({
+      let response: any = await this.genAI!.models.generateContent({
         model: "gemini-2.5-flash-image-preview",
         contents: [
           {
@@ -410,6 +462,9 @@ class NanoBananaMCP {
           }
         ],
       });
+      
+      // Clear imageParts to free memory immediately
+      imageParts.length = 0;
       
       // Process response
       const savedFiles: string[] = [];
@@ -448,11 +503,17 @@ class NanoBananaMCP {
               savedFiles.push(filePath);
             }
             
-            // Explicitly release buffer reference to help GC
+            // Explicitly release buffer reference
             editedImageBuffer = null;
+            
+            // Clear the base64 data from response to free memory immediately
+            part.inlineData.data = '';
           }
         }
       }
+      
+      // Explicitly clear the response object to free memory
+      response = null;
       
       // Log status information to console
       console.log(`🎨 Image edited with nano-banana!`);
@@ -490,9 +551,10 @@ class NanoBananaMCP {
         console.log(`Note: No edited image was generated.`);
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
+
       
-      // Trigger garbage collection to free up memory
-      this.triggerGC();
+      // Force aggressive garbage collection to free up memory immediately
+      await this.forceAggressiveGC();
       
       // Return only the Azure URL as JSON
       return { 
@@ -504,6 +566,8 @@ class NanoBananaMCP {
       };
       
     } catch (error) {
+      // Trigger GC even on error to clean up any partial data
+      await this.forceAggressiveGC();
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to edit image: ${error instanceof Error ? error.message : String(error)}`

@@ -85,6 +85,50 @@ Edit this image to add some birds in the sky
 Continue editing to make it more dramatic
 ```
 
+## ☸️ Kubernetes Deployment
+
+### For K8s/Container Environments
+
+Perfect for cloud-native deployments with automatic memory management:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nano-banana-mcp
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: nano-banana
+        image: node:18-alpine
+        command: ["npx"]
+        args: ["nano-banana-mcp-azure-blob"]
+        env:
+        - name: GEMINI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: nano-banana-secrets
+              key: gemini-api-key
+        - name: AZURE_STORAGE_CONNECTION_STRING
+          valueFrom:
+            secretKeyRef:
+              name: nano-banana-secrets
+              key: azure-connection-string
+        - name: MAX_OLD_SPACE_SIZE
+          value: "400"  # Set to 50-60% of memory limit
+        resources:
+          requests:
+            memory: "256Mi"
+          limits:
+            memory: "800Mi"
+```
+
+> 💡 **Memory Tip**: Set `MAX_OLD_SPACE_SIZE` to 50-60% of your container's memory limit for optimal performance.
+
+See [K8S_MEMORY_OPTIMIZATION.md](K8S_MEMORY_OPTIMIZATION.md) for detailed guidance.
+
 ## 🎯 Usage with Cursor
 
 ### Configuration:
@@ -378,22 +422,26 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - 📋 **Enhanced Commands**: All existing commands work with both local and cloud storage
 - 🛠️ **Easy Configuration**: Simple environment variable setup for Azure
 - 🧹 **Memory Leak Fix**: Resolved memory accumulation issues for stable long-term operation
-- ⚡ **Auto GC**: Automatic `--expose-gc` enablement, zero configuration needed
+- ⚡ **Auto GC**: Automatic memory optimization with intelligent garbage collection
+- ☸️ **K8s Ready**: Optimized for Kubernetes deployment with configurable memory limits
 
 ## 🐛 Recent Fixes
 
-### Memory Leak Resolution (v1.1.8)
+### Memory Optimization (v1.1.9)
 
-修复了内存泄漏问题，现在可以长时间稳定运行：
+全面的内存管理优化，特别针对 K8s 环境：
 
-- ✅ 移除了未使用的图片数据累积
-- ✅ 显式释放 Buffer 引用
-- ✅ 添加垃圾回收触发机制
-- ✅ **自动启用 `--expose-gc` 参数**（无需手动配置！）
-- ✅ 显著降低内存使用（60-80%）
+#### 核心改进
+- ✅ **立即清理**：处理完图片后立即清空 response 对象
+- ✅ **强制多次 GC**：连续触发 3 次垃圾回收确保彻底清理
+- ✅ **智能监控**：自动检测内存使用，超过 70% 自动触发 GC
+- ✅ **自动优化参数**：CLI wrapper 自动添加最佳 Node.js 参数
+- ✅ **K8s 友好**：支持通过环境变量配置内存限制
+- ✅ **显著降低内存使用**：峰值降低 60-80%
 
-**现在更简单了！** 直接使用 `npx` 命令即可，wrapper 会自动启用 `--expose-gc`：
+#### 简单配置
 
+**本地/MCP 客户端：**
 ```json
 {
   "nano-banana": {
@@ -406,7 +454,24 @@ MIT License - see [LICENSE](LICENSE) file for details.
 }
 ```
 
-内部机制：CLI wrapper 会自动检测 GC 是否可用，如果不可用会自动重启进程并添加 `--expose-gc` 参数。
+**K8s 部署（800Mi 容器）：**
+```yaml
+env:
+- name: MAX_OLD_SPACE_SIZE
+  value: "400"  # 设置为容器限制的 50-60%
+- name: GEMINI_API_KEY
+  value: "your-api-key"
+resources:
+  limits:
+    memory: "800Mi"
+```
+
+CLI wrapper 会自动：
+- 启用 `--expose-gc`（手动 GC）
+- 设置 `--max-old-space-size`（堆大小限制）
+- 应用 `--optimize-for-size`（内存优先）
+
+详细信息：[K8S_MEMORY_OPTIMIZATION.md](K8S_MEMORY_OPTIMIZATION.md)
 
 ---
 
