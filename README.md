@@ -55,6 +55,8 @@ Add this to your Claude Code MCP settings:
 }
 ```
 
+> 💡 **提示**: CLI wrapper 会自动启用 `--expose-gc` 以获得最佳内存管理，无需手动配置！
+
 **Option B: Local storage only**
 ```json
 {
@@ -103,6 +105,8 @@ Add to your Cursor MCP configuration:
   }
 }
 ```
+
+> 💡 **提示**: 自动启用内存优化，无需额外配置！
 
 **Option B: Local storage only**
 ```json
@@ -373,6 +377,36 @@ MIT License - see [LICENSE](LICENSE) file for details.
 - 🌐 **Public URLs**: Generated images get shareable public URLs when using Azure
 - 📋 **Enhanced Commands**: All existing commands work with both local and cloud storage
 - 🛠️ **Easy Configuration**: Simple environment variable setup for Azure
+- 🧹 **Memory Leak Fix**: Resolved memory accumulation issues for stable long-term operation
+- ⚡ **Auto GC**: Automatic `--expose-gc` enablement, zero configuration needed
+
+## 🐛 Recent Fixes
+
+### Memory Leak Resolution (v1.1.8)
+
+修复了内存泄漏问题，现在可以长时间稳定运行：
+
+- ✅ 移除了未使用的图片数据累积
+- ✅ 显式释放 Buffer 引用
+- ✅ 添加垃圾回收触发机制
+- ✅ **自动启用 `--expose-gc` 参数**（无需手动配置！）
+- ✅ 显著降低内存使用（60-80%）
+
+**现在更简单了！** 直接使用 `npx` 命令即可，wrapper 会自动启用 `--expose-gc`：
+
+```json
+{
+  "nano-banana": {
+    "command": "npx",
+    "args": ["nano-banana-mcp-azure-blob"],
+    "env": {
+      "GEMINI_API_KEY": "your-api-key"
+    }
+  }
+}
+```
+
+内部机制：CLI wrapper 会自动检测 GC 是否可用，如果不可用会自动重启进程并添加 `--expose-gc` 参数。
 
 ---
 

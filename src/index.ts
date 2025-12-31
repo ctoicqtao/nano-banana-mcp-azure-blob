@@ -54,6 +54,20 @@ class NanoBananaMCP {
     this.setupHandlers();
   }
 
+  /**
+   * Helper method to trigger garbage collection if available
+   * This helps prevent memory leaks by cleaning up after large operations
+   */
+  private triggerGC(): void {
+    if (global.gc) {
+      global.gc();
+      console.log('🧹 Garbage collection triggered');
+    } else {
+      // Schedule a microtask to give GC a chance to run
+      setImmediate(() => {});
+    }
+  }
+
   private setupHandlers() {
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       return {
@@ -198,7 +212,6 @@ class NanoBananaMCP {
       });
       
       // Process response to extract image data
-      const content: any[] = [];
       const savedFiles: string[] = [];
       let textContent = "";
       
@@ -221,7 +234,8 @@ class NanoBananaMCP {
             const randomId = Math.random().toString(36).substring(2, 8);
             const fileName = `generated-${timestamp}-${randomId}.png`;
             
-            const imageBuffer = Buffer.from(part.inlineData.data, 'base64');
+            // Create buffer from base64
+            let imageBuffer: Buffer | null = Buffer.from(part.inlineData.data, 'base64');
             
             // Try to upload to Azure Blob Storage first
             const blobUrl = await this.uploadToAzureBlob(imageBuffer, fileName);
@@ -238,12 +252,8 @@ class NanoBananaMCP {
               console.log(`📁 Image saved locally: ${filePath}`);
             }
             
-            // Add image to MCP response
-            content.push({
-              type: "image",
-              data: part.inlineData.data,
-              mimeType: part.inlineData.mimeType || "image/png",
-            });
+            // Explicitly release buffer reference to help GC
+            imageBuffer = null;
           }
         }
       }
@@ -279,6 +289,9 @@ class NanoBananaMCP {
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
       
+      // Trigger garbage collection to free up memory
+      this.triggerGC();
+      
       // Return only the Azure URL as JSON
       return { 
         content: [{
@@ -312,7 +325,7 @@ class NanoBananaMCP {
       // Ensure Azure Storage is initialized if connection string is available
       await this.ensureAzureStorageInitialized();
       // Prepare the main image
-      let imageBuffer: Buffer;
+      let imageBuffer: Buffer | null = null;
       let mimeType: string;
       
       if (imagePath.startsWith('https://')) {
@@ -342,11 +355,14 @@ class NanoBananaMCP {
         }
       ];
       
+      // Release main image buffer after converting to base64
+      imageBuffer = null;
+      
       // Add reference images if provided
       if (referenceImages && referenceImages.length > 0) {
         for (const refPath of referenceImages) {
           try {
-            let refBuffer: Buffer;
+            let refBuffer: Buffer | null = null;
             let refMimeType: string;
             
             if (refPath.startsWith('https://')) {
@@ -365,6 +381,9 @@ class NanoBananaMCP {
             }
             
             const refBase64 = refBuffer.toString('base64');
+            
+            // Release reference buffer after converting to base64
+            refBuffer = null;
             
             imageParts.push({
               inlineData: {
@@ -393,7 +412,6 @@ class NanoBananaMCP {
       });
       
       // Process response
-      const content: any[] = [];
       const savedFiles: string[] = [];
       let textContent = "";
       
@@ -408,37 +426,30 @@ class NanoBananaMCP {
             textContent += part.text;
           }
           
-          if (part.inlineData) {
+          if (part.inlineData?.data) {
             // Save edited image
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const randomId = Math.random().toString(36).substring(2, 8);
             const fileName = `edited-${timestamp}-${randomId}.png`;
             
-            if (part.inlineData.data) {
-              const imageBuffer = Buffer.from(part.inlineData.data, 'base64');
-              
-              // Try to upload to Azure Blob Storage first
-              const blobUrl = await this.uploadToAzureBlob(imageBuffer, fileName);
-              
-              if (blobUrl) {
-                // Successfully uploaded to Azure
-                savedFiles.push(blobUrl);
-              } else {
-                // Fallback to local storage
-                const filePath = path.join(imagesDir, fileName);
-                await fs.writeFile(filePath, imageBuffer);
-                savedFiles.push(filePath);
-              }
+            // Create buffer from base64
+            let editedImageBuffer: Buffer | null = Buffer.from(part.inlineData.data, 'base64');
+            
+            // Try to upload to Azure Blob Storage first
+            const blobUrl = await this.uploadToAzureBlob(editedImageBuffer, fileName);
+            
+            if (blobUrl) {
+              // Successfully uploaded to Azure
+              savedFiles.push(blobUrl);
+            } else {
+              // Fallback to local storage
+              const filePath = path.join(imagesDir, fileName);
+              await fs.writeFile(filePath, editedImageBuffer);
+              savedFiles.push(filePath);
             }
             
-            // Add to MCP response
-            if (part.inlineData.data) {
-              content.push({
-                type: "image",
-                data: part.inlineData.data,
-                mimeType: part.inlineData.mimeType || "image/png",
-              });
-            }
+            // Explicitly release buffer reference to help GC
+            editedImageBuffer = null;
           }
         }
       }
@@ -479,6 +490,9 @@ class NanoBananaMCP {
         console.log(`Note: No edited image was generated.`);
         console.log(`💡 Tip: Try running the command again - sometimes the first call needs to warm up the model.`);
       }
+      
+      // Trigger garbage collection to free up memory
+      this.triggerGC();
       
       // Return only the Azure URL as JSON
       return { 
