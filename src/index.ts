@@ -26,6 +26,7 @@ const ConfigSchema = z.object({
   geminiApiKey: z.string().min(1, "Gemini API key is required"),
   azureStorageConnectionString: z.string().optional(),
   azureStorageContainerName: z.string().default("nano-banana-images"),
+  geminiModel: z.string().default("gemini-2.5-flash-image-preview"),
 });
 
 type Config = z.infer<typeof ConfigSchema>;
@@ -206,9 +207,15 @@ class NanoBananaMCP {
     const { apiKey } = request.params.arguments as { apiKey: string };
     
     try {
-      ConfigSchema.parse({ geminiApiKey: apiKey });
+      const geminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-image-preview';
       
-      this.config = { geminiApiKey: apiKey, azureStorageContainerName: "nano-banana-images" };
+      ConfigSchema.parse({ geminiApiKey: apiKey, geminiModel: geminiModel });
+      
+      this.config = { 
+        geminiApiKey: apiKey, 
+        azureStorageContainerName: "nano-banana-images",
+        geminiModel: geminiModel
+      };
       this.genAI = new GoogleGenAI({ apiKey });
       this.configSource = 'config_file'; // Manual configuration via tool
       
@@ -219,7 +226,7 @@ class NanoBananaMCP {
         content: [
           {
             type: "text",
-            text: "✅ Gemini API token configured successfully! You can now use nano-banana image generation features.",
+            text: `✅ Gemini API token configured successfully! You can now use nano-banana image generation features.\n使用模型: ${geminiModel}`,
           },
         ],
         isError: false,
@@ -246,8 +253,11 @@ class NanoBananaMCP {
       // Ensure Azure Storage is initialized if connection string is available
       await this.ensureAzureStorageInitialized();
       
+      const modelToUse = this.config!.geminiModel || 'gemini-2.5-flash-image-preview';
+      console.log(`🤖 使用模型: ${modelToUse}`);
+      
       let response: any = await this.genAI!.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: modelToUse,
         contents: prompt,
       });
       
@@ -453,9 +463,12 @@ class NanoBananaMCP {
       // Add the text prompt
       imageParts.push({ text: prompt });
       
+      const modelToUse = this.config!.geminiModel || 'gemini-2.5-flash-image-preview';
+      console.log(`🤖 使用模型: ${modelToUse}`);
+      
       // Use new API format with multiple images and text
       let response: any = await this.genAI!.models.generateContent({
-        model: "gemini-2.5-flash-image-preview",
+        model: modelToUse,
         contents: [
           {
             parts: imageParts
@@ -740,16 +753,19 @@ class NanoBananaMCP {
     const envApiKey = process.env.GEMINI_API_KEY;
     const envAzureConnectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
     const envAzureContainerName = process.env.AZURE_STORAGE_CONTAINER_NAME || 'nano-banana-images';
+    const envGeminiModel = process.env.GEMINI_MODEL || 'gemini-2.5-flash-image-preview';
     
     if (envApiKey) {
       try {
         this.config = ConfigSchema.parse({ 
           geminiApiKey: envApiKey,
           azureStorageConnectionString: envAzureConnectionString,
-          azureStorageContainerName: envAzureContainerName
+          azureStorageContainerName: envAzureContainerName,
+          geminiModel: envGeminiModel
         });
         this.genAI = new GoogleGenAI({ apiKey: this.config.geminiApiKey });
         this.configSource = 'environment';
+        console.log(`✅ Gemini 模型配置: ${this.config.geminiModel}`);
         await this.initializeAzureStorage();
         return;
       } catch (error) {

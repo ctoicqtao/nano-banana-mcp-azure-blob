@@ -47,6 +47,7 @@ Add this to your Claude Code MCP settings:
       "args": ["nano-banana-mcp-azure-blob"],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here",
+        "GEMINI_MODEL": "gemini-2.5-flash-image-preview",
         "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
         "AZURE_STORAGE_CONTAINER_NAME": "nano-banana-images"
       }
@@ -65,7 +66,8 @@ Add this to your Claude Code MCP settings:
       "command": "npx",
       "args": ["nano-banana-mcp-azure-blob"],
       "env": {
-        "GEMINI_API_KEY": "your-gemini-api-key-here"
+        "GEMINI_API_KEY": "your-gemini-api-key-here",
+        "GEMINI_MODEL": "gemini-2.5-flash-image-preview"
       }
     }
   }
@@ -111,6 +113,8 @@ spec:
             secretKeyRef:
               name: nano-banana-secrets
               key: gemini-api-key
+        - name: GEMINI_MODEL
+          value: "gemini-2.5-flash-image-preview"
         - name: AZURE_STORAGE_CONNECTION_STRING
           valueFrom:
             secretKeyRef:
@@ -143,6 +147,7 @@ Add to your Cursor MCP configuration:
     "args": ["nano-banana-mcp-azure-blob"],
     "env": {
       "GEMINI_API_KEY": "your-gemini-api-key-here",
+      "GEMINI_MODEL": "gemini-2.5-flash-image-preview",
       "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
       "AZURE_STORAGE_CONTAINER_NAME": "nano-banana-images"
     }
@@ -159,7 +164,8 @@ Add to your Cursor MCP configuration:
     "command": "npx",
     "args": ["nano-banana-mcp-azure-blob"],
     "env": {
-      "GEMINI_API_KEY": "your-gemini-api-key-here"
+      "GEMINI_API_KEY": "your-gemini-api-key-here",
+      "GEMINI_MODEL": "gemini-2.5-flash-image-preview"
     }
   }
 }
@@ -184,6 +190,7 @@ If you're using a different MCP client, you can configure nano-banana-mcp-azure-
     "args": ["nano-banana-mcp-azure-blob"],
     "env": {
       "GEMINI_API_KEY": "your-gemini-api-key-here",
+      "GEMINI_MODEL": "gemini-2.5-flash-image-preview",
       "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
       "AZURE_STORAGE_CONTAINER_NAME": "nano-banana-images"
     }
@@ -194,6 +201,7 @@ If you're using a different MCP client, you can configure nano-banana-mcp-azure-
 **Method B: System Environment Variable**
 ```bash
 export GEMINI_API_KEY="your-gemini-api-key-here"
+export GEMINI_MODEL="gemini-2.5-flash-image-preview"
 export AZURE_STORAGE_CONNECTION_STRING="your-azure-connection-string"
 export AZURE_STORAGE_CONTAINER_NAME="nano-banana-images"
 npx nano-banana-mcp-azure-blob
@@ -255,6 +263,38 @@ Check if the API key is configured.
 get_configuration_status()
 ```
 
+## 🤖 可用的 Gemini 模型
+
+你可以通过 `GEMINI_MODEL` 环境变量来指定使用的模型。目前支持的模型包括：
+
+| 模型名称 | 模型参数值 | 特点 | 推荐场景 |
+|---------|-----------|------|---------|
+| **Gemini 3 Pro Image Preview** | `gemini-3-pro-image-preview` | 专门针对图像+文本处理优化 | ✅ **最推荐**（图像生成与编辑） |
+| **Gemini 3 Flash** | `gemini-3-flash` | 速度快、延迟低、成本更低 | ⚡ 快速生成且成本敏感 |
+| **Gemini 2.5 Flash Image** | `gemini-2.5-flash-image-preview` | 上一代图像模型（默认） | 🔄 当前默认模型 |
+| **Gemini 3 Pro Preview** | `gemini-3-pro-preview` | 平衡的高能力模型，支持多模态 | 🎯 通用任务处理 |
+
+### 如何切换模型
+
+只需在配置中修改 `GEMINI_MODEL` 的值：
+
+```json
+{
+  "mcpServers": {
+    "nano-banana": {
+      "command": "npx",
+      "args": ["nano-banana-mcp-azure-blob"],
+      "env": {
+        "GEMINI_API_KEY": "your-api-key",
+        "GEMINI_MODEL": "gemini-3-pro-image-preview"
+      }
+    }
+  }
+}
+```
+
+如果不指定 `GEMINI_MODEL`，将使用默认模型 `gemini-2.5-flash-image-preview`。
+
 ## ⚙️ Configuration Priority
 
 The MCP server loads your API key in the following priority order:
@@ -289,6 +329,7 @@ For cloud storage, configure Azure Blob Storage by adding these environment vari
       "args": ["nano-banana-mcp-azure-blob"],
       "env": {
         "GEMINI_API_KEY": "your-gemini-api-key-here",
+        "GEMINI_MODEL": "gemini-2.5-flash-image-preview",
         "AZURE_STORAGE_CONNECTION_STRING": "your-azure-storage-connection-string",
         "AZURE_STORAGE_CONTAINER_NAME": "nano-banana-images"
       }
@@ -448,7 +489,8 @@ MIT License - see [LICENSE](LICENSE) file for details.
     "command": "npx",
     "args": ["nano-banana-mcp-azure-blob"],
     "env": {
-      "GEMINI_API_KEY": "your-api-key"
+      "GEMINI_API_KEY": "your-api-key",
+      "GEMINI_MODEL": "gemini-2.5-flash-image-preview"
     }
   }
 }
@@ -461,6 +503,8 @@ env:
   value: "400"  # 设置为容器限制的 50-60%
 - name: GEMINI_API_KEY
   value: "your-api-key"
+- name: GEMINI_MODEL
+  value: "gemini-2.5-flash-image-preview"
 resources:
   limits:
     memory: "800Mi"
