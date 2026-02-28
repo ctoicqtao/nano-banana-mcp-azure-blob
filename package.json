@@ -1,11 +1,11 @@
 {
   "name": "nano-banana-mcp-azure-blob",
-  "version": "1.2.0",
+  "version": "1.2.5",
   "description": "MCP server for Google's Gemini 2.5 Flash Image generation API with Azure Blob Storage support",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "nano-banana-mcp-azure-blob": "./dist/cli.js"
+    "nano-banana-mcp-azure-blob": "dist/cli.js"
   },
   "files": [
     "dist/",
@@ -50,7 +50,7 @@
   "dependencies": {
     "@azure/storage-blob": "^12.17.0",
     "@google/genai": "^1.16.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@modelcontextprotocol/sdk": "^1.27.0",
     "dotenv": "^16.4.5",
     "zod": "^3.22.4"
   },
